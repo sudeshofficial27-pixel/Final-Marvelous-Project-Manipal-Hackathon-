@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MedSignal — Medicine Shortage Early Warning</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
+<style>
+:root,:root[data-theme="light"],:root[data-theme="dark"]{
+  --bg:#04070A; --bg2:#070C11;
+  --panel:rgba(16,23,29,.74); --panel2:rgba(24,33,40,.66);
+  --line:rgba(150,200,210,.10); --line2:rgba(150,200,210,.22);
+  --ink:#ECF6F4; --ink2:#9DB4B6; --ink3:#5F7A7E;
+  --stable:#2EE6A8; --watch:#F7CE4F; --high:#FF9A4D; --crit:#FF5257;
+  --focus:#2EE6A8;
+  --gs:0 0 16px rgba(46,230,168,.5);
+  --gw:0 0 16px rgba(247,206,79,.45);
+  --gh:0 0 16px rgba(255,154,77,.45);
+  --gc:0 0 18px rgba(255,82,87,.55);
+  --r:14px;
+  --fs:clamp(14px,0.55vw + 12px,16px);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:Archivo,"Helvetica Neue",Arial,sans-serif;
+  font-size:var(--fs); line-height:1.45;
+  font-variant-numeric:tabular-nums;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+  background-image:
+    radial-gradient(900px 520px at 12% -6%, rgba(255,82,87,.13), transparent 62%),
+    radial-gradient(760px 480px at 92% 4%, rgba(46,230,168,.10), transparent 60%),
+    radial-gradient(1100px 700px at 50% 108%, rgba(80,140,255,.08), transparent 65%);
+  background-attachment:fixed;
+}
+h1,h2,h3,h4{margin:0;font-weight:600;letter-spacing:-0.015em;line-height:1.15}
+p{margin:0 0 .7em}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
+.serif{font-family:Newsreader,Georgia,serif;font-size:1.02em;line-height:1.55;color:var(--ink2)}
+
+/* ---------- shell ---------- */
+.shell{max-width:1440px;margin:0 auto;padding:0 20px 80px}
+header.top{
+  display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;
+  padding:22px 0 16px;border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:baseline;gap:12px}
+.brand .mark{
+  font-weight:700;font-size:26px;letter-spacing:-0.04em;
+  padding:2px 10px;border:1.5px solid rgba(255,82,87,.6);border-radius:9px;color:var(--ink);
+  box-shadow:var(--gc), inset 0 0 22px rgba(255,82,87,.14);
+  text-shadow:0 0 14px rgba(255,82,87,.45);
+}
+.brand .sub{color:var(--ink3);font-size:13.5px;max-width:42ch;line-height:1.3}
+.clock{font-size:13px;color:var(--ink3);text-align:right}
+.clock b{display:block;color:var(--ink2);font-weight:500;font-size:14px}
+
+/* ---------- kpi strip ---------- */
+.kpis{
+  display:grid;grid-template-columns:repeat(5,1fr);gap:1px;
+  background:var(--line);border:1px solid var(--line);border-radius:var(--r);
+  overflow:hidden;margin:16px 0 22px;
+  box-shadow:0 22px 60px -30px rgba(0,0,0,.95), inset 0 1px 0 rgba(255,255,255,.05);
+  backdrop-filter:blur(14px);
+}
+.kpi{background:var(--panel);padding:14px 16px}
+.kpi .n{font-size:27px;font-weight:700;letter-spacing:-0.03em;line-height:1.1}
+.kpi .l{font-size:12.5px;color:var(--ink3);margin-top:3px}
+.kpi.alarm .n{color:var(--crit);text-shadow:var(--gc)}
+.kpi.warn .n{color:var(--high);text-shadow:var(--gh)}
+.kpi.good .n{color:var(--stable);text-shadow:var(--gs)}
+
+/* ---------- med rail ---------- */
+.rail{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;margin-bottom:16px;scrollbar-width:thin}
+.med{
+  flex:0 0 auto;display:flex;gap:10px;align-items:center;
+  border:1px solid var(--line);background:var(--panel);border-radius:999px;
+  padding:7px 15px 7px 11px;backdrop-filter:blur(12px);
+  transition:border-color .15s,background .15s,box-shadow .15s;
+}
+.med:hover{border-color:var(--line2);box-shadow:0 0 0 1px rgba(255,255,255,.03)}
+.med[aria-pressed="true"]{
+  background:var(--panel2);border-color:rgba(46,230,168,.45);
+  box-shadow:0 0 22px -6px rgba(46,230,168,.5), inset 0 0 18px rgba(46,230,168,.06);
+}
+.med .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;box-shadow:0 0 10px currentColor}
+.med .nm{font-size:13.5px;font-weight:500;white-space:nowrap}
+.med .ct{font-size:12px;color:var(--ink3)}
+
+/* ---------- tabs ---------- */
+nav.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:20px;overflow-x:auto}
+nav.tabs button{
+  padding:9px 15px;font-size:14px;color:var(--ink3);white-space:nowrap;
+  border-bottom:2px solid transparent;margin-bottom:-1px;font-weight:500;
+}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--crit);box-shadow:0 10px 24px -14px var(--crit)}
+nav.tabs button:hover{color:var(--ink2)}
+
+/* ---------- panels ---------- */
+.grid{display:grid;grid-template-columns:1.35fr 1fr;gap:18px;align-items:start}
+.card{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
+  backdrop-filter:blur(16px);
+  box-shadow:0 26px 70px -36px rgba(0,0,0,.95), inset 0 1px 0 rgba(255,255,255,.055);
+}
+.card > .hd{
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+  padding:12px 16px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(255,255,255,.045),transparent);
+}
+.card > .hd h3{font-size:14.5px}
+.card > .hd .meta{font-size:12.5px;color:var(--ink3)}
+.bd{padding:15px}
+.bd.flush{padding:0}
+
+/* ---------- map ---------- */
+.mapwrap{
+  position:relative;
+  background:
+    radial-gradient(70% 90% at 30% 20%, rgba(255,82,87,.07), transparent 70%),
+    radial-gradient(60% 80% at 80% 80%, rgba(46,230,168,.06), transparent 70%),
+    linear-gradient(170deg,#070C10,#05080B);
+}
+svg.map{display:block;width:100%;height:auto}
+.legend{display:flex;flex-wrap:wrap;gap:14px;padding:10px 15px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink3)}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:1px}
+.maptoggle{display:flex;gap:6px}
+.maptoggle button{font-size:12.5px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--ink3)}
+.maptoggle button[aria-pressed="true"]{
+  color:var(--ink);border-color:rgba(46,230,168,.5);background:rgba(46,230,168,.08);
+  box-shadow:0 0 18px -6px var(--stable);
+}
+
+/* ---------- signal list ---------- */
+.sig{display:block;width:100%;text-align:left;padding:11px 15px;border-bottom:1px solid var(--line);position:relative}
+.sig:last-child{border-bottom:none}
+.sig:hover{background:var(--panel2)}
+.sig[aria-current="true"]{background:var(--panel2)}
+.sig[aria-current="true"]::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--crit);box-shadow:0 0 16px var(--crit)}
+.sig .r1{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.sig .fac{font-weight:600;font-size:14px}
+.sig .dos{font-size:13px;font-weight:600}
+.sig .r2{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--ink3);margin-top:2px}
+.bar{height:3px;background:rgba(255,255,255,.07);border-radius:2px;margin-top:8px;overflow:visible}
+.bar > i{display:block;height:100%;border-radius:2px;box-shadow:0 0 10px currentColor}
+
+.tag{display:inline-block;font-size:11.5px;font-weight:600;padding:1.5px 8px;border-radius:5px;letter-spacing:.01em;border:1px solid transparent}
+.tag.crit{background:rgba(255,82,87,.12);color:var(--crit);border-color:rgba(255,82,87,.32);box-shadow:0 0 14px -4px var(--crit)}
+.tag.high{background:rgba(255,154,77,.12);color:var(--high);border-color:rgba(255,154,77,.32);box-shadow:0 0 14px -4px var(--high)}
+.tag.watch{background:rgba(247,206,79,.12);color:var(--watch);border-color:rgba(247,206,79,.30);box-shadow:0 0 14px -4px var(--watch)}
+.tag.stable{background:rgba(46,230,168,.12);color:var(--stable);border-color:rgba(46,230,168,.30);box-shadow:0 0 14px -4px var(--stable)}
+
+/* ---------- detail ---------- */
+.dl{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:13.5px;margin:0}
+.dl dt{color:var(--ink3)}
+.dl dd{margin:0;font-weight:500}
+.drivers{list-style:none;padding:0;margin:10px 0 0}
+.drivers li{display:flex;gap:9px;padding:6px 0;border-top:1px dashed var(--line);font-size:13.5px}
+.drivers li span:first-child{color:var(--ink3);flex:0 0 118px}
+
+/* ---------- table ---------- */
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-weight:600;color:var(--ink3);font-size:12.5px;padding:10px 12px;border-bottom:1px solid var(--line2);background:#0C1218;position:sticky;top:0;z-index:2}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td.num{text-align:right}
+.why{color:var(--ink3);font-size:12.5px;margin-top:3px;max-width:52ch}
+
+/* ---------- cascade ---------- */
+.wave{border-left:2px solid var(--line2);margin-left:10px;padding-left:16px;position:relative}
+.wave + .wave{margin-top:4px}
+.wave > .hd2{display:flex;align-items:center;gap:10px;margin:0 0 6px -27px}
+.wave .ring{width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(255,82,87,.5);background:#080D11;display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--ink);flex:0 0 auto;box-shadow:0 0 16px -4px var(--crit)}
+.wave h4{font-size:13.5px}
+.wave .day{font-size:12.5px;color:var(--ink3)}
+.nodes{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.node{border:1px solid var(--line);background:var(--panel2);border-radius:10px;padding:9px 12px;min-width:178px;backdrop-filter:blur(10px);box-shadow:0 14px 34px -24px #000}
+.node .n1{font-size:13px;font-weight:600}
+.node .n2{font-size:12px;color:var(--ink3);margin-top:2px}
+
+select{
+  background:#0D141A;color:var(--ink);border:1px solid var(--line2);
+  border-radius:8px;padding:8px 12px;font:inherit;font-size:13.5px;max-width:100%;
+}
+select:hover{border-color:rgba(46,230,168,.4);box-shadow:0 0 18px -8px var(--stable)}
+.btn{border:1px solid var(--line2);background:var(--panel2);border-radius:8px;padding:8px 15px;font-size:13.5px;font-weight:500;transition:box-shadow .15s,border-color .15s}
+.btn:hover{border-color:var(--ink3);box-shadow:0 0 20px -8px rgba(255,255,255,.4)}
+.btn.primary{
+  background:linear-gradient(180deg,#FF6166,#E03B41);border-color:rgba(255,82,87,.7);color:#fff;
+  box-shadow:0 0 26px -6px rgba(255,82,87,.8), inset 0 1px 0 rgba(255,255,255,.22);
+}
+.btn.primary:hover{filter:brightness(1.1);box-shadow:0 0 34px -4px rgba(255,82,87,.95)}
+
+.scroll{max-height:560px;overflow:auto}
+.note{font-size:12.5px;color:var(--ink3);padding:11px 15px;border-top:1px solid var(--line);background:var(--panel2)}
+.hide{display:none !important}
+.method{max-width:74ch}
+.method h4{margin:18px 0 6px;font-size:14.5px}
+.method code{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:12.5px}
+.uncert{display:flex;gap:10px;align-items:center;font-size:12.5px;color:var(--ink3);margin-top:8px}
+.conf{display:flex;gap:2px}
+.conf i{width:14px;height:5px;border-radius:2px;background:var(--line2)}
+.conf i.on{background:var(--ink2)}
+
+@media (max-width:980px){
+  .grid{grid-template-columns:1fr}
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .brand .sub{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
+.pulse{animation:pl 2.4s ease-out infinite}
+@keyframes pl{0%{r:6;opacity:.55}70%{r:26;opacity:0}100%{opacity:0}}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<header class="top">
+  <div class="brand">
+    <div class="mark">MedSignal</div>
+    <div>
+      <h1 style="font-size:17px">Medicine shortage early warning &amp; redistribution</h1>
+      <div class="sub">Chengalpattu district supply network — 15 facilities, 6 essential medicines, 21 days of consumption history</div>
+    </div>
+  </div>
+  <div class="clock">
+    <b id="asof">—</b>
+    <span>Stock positions synced from facility eLMIS</span>
+  </div>
+</header>
+
+<div class="kpis" id="kpis"></div>
+
+<div class="rail" id="rail"></div>
+
+<nav class="tabs" id="tabs">
+  <button aria-selected="true" data-tab="watch">Watchboard</button>
+  <button aria-selected="false" data-tab="cascade">Spread simulator</button>
+  <button aria-selected="false" data-tab="move">Redistribution plan</button>
+  <button aria-selected="false" data-tab="method">How it decides</button>
+</nav>
+
+<!-- ============ WATCHBOARD ============ -->
+<section id="tab-watch">
+  <div class="grid">
+    <div>
+      <div class="card">
+        <div class="hd">
+          <h3 id="maptitle">Regional risk map</h3>
+          <div class="maptoggle">
+            <button id="tgRisk" aria-pressed="true">Risk</button>
+            <button id="tgCover" aria-pressed="false">Days of cover</button>
+            <button id="tgFlow" aria-pressed="false">Proposed moves</button>
+          </div>
+        </div>
+        <div class="bd flush mapwrap"><svg class="map" id="map" viewBox="0 0 720 470" role="img" aria-label="Map of district facilities coloured by shortage risk"></svg></div>
+        <div class="legend">
+          <span><i style="background:var(--crit)"></i>Critical — stockout likely inside 7 days</span>
+          <span><i style="background:var(--high)"></i>High — inside 14 days</span>
+          <span><i style="background:var(--watch)"></i>Watch — cover below reorder level</span>
+          <span><i style="background:var(--stable)"></i>Stable</span>
+          <span><i style="background:var(--ink3);border-radius:2px"></i>District warehouse</span>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <div class="hd"><h3>Facility detail</h3><div class="meta" id="detmeta">—</div></div>
+        <div class="bd" id="detail"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hd">
+        <h3>Signals, ranked</h3>
+        <div class="meta" id="sigmeta">—</div>
+      </div>
+      <div class="bd flush scroll" id="signals"></div>
+      <div class="note">Ranking blends stockout probability, how essential the medicine is, and how many people the facility serves.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CASCADE ============ -->
+<section id="tab-cascade" class="hide">
+  <div class="card">
+    <div class="hd">
+      <h3>If this facility runs out, what happens next?</h3>
+      <div class="meta">Patients don't disappear — they travel</div>
+    </div>
+    <div class="bd">
+      <p class="serif" style="max-width:76ch">When a facility stocks out, most of its patients turn up at the nearest facility that still has stock. That transferred demand is what turns one empty shelf into a district-wide disruption. Pick a starting point and MedSignal traces the load forward, wave by wave.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:14px 0 4px">
+        <select id="cascFac"></select>
+        <button class="btn primary" id="cascRun">Trace the spread</button>
+        <span class="meta" id="cascMeta" style="font-size:12.5px;color:var(--ink3)"></span>
+      </div>
+    </div>
+    <div class="bd" id="cascOut" style="border-top:1px solid var(--line)"></div>
+  </div>
+</section>
+
+<!-- ============ REDISTRIBUTION ============ -->
+<section id="tab-move" class="hide">
+  <div class="grid" style="grid-template-columns:1.6fr 1fr">
+    <div class="card">
+      <div class="hd"><h3>Recommended stock transfers</h3><div class="meta" id="moveMeta">—</div></div>
+      <div class="bd flush scroll"><table id="moveTbl"></table></div>
+      <div class="note">A facility can only donate stock above its own 21-day safety cover. Transfers are capped at that surplus, never below it.</div>
+    </div>
+    <div class="card">
+      <div class="hd"><h3>Needs no neighbour can cover</h3><div class="meta">Escalate to state procurement</div></div>
+      <div class="bd flush" id="escalate"></div>
+      <div class="note">These gaps stay open after every in-district move is applied, so they need an external order, not a reshuffle.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ METHOD ============ -->
+<section id="tab-method" class="hide">
+  <div class="card"><div class="bd method">
+    <h3 style="font-size:16px">How MedSignal turns stock counts into a warning</h3>
+    <p class="serif">Every facility–medicine pair goes through the same five steps each night. Nothing is a black box: each number on the watchboard can be traced back to the line of arithmetic that produced it.</p>
+
+    <h4>1. Forecast the demand, not just the average</h4>
+    <p class="serif">Daily consumption is smoothed with an exponentially weighted average over the last 7 days, then a trend term fitted over 14 days is added so a rising outbreak isn't flattened away. The spread of the residuals gives <code>σ</code>, the day-to-day volatility — that is what carries uncertainty through the rest of the pipeline.</p>
+
+    <h4>2. Project the shelf forward</h4>
+    <p class="serif">Expected stock on day <code>t</code> is current stock, minus <code>μ·t</code>, plus any replenishment expected to land before day <code>t</code>. Deliveries are discounted by the supplier's on-time record rather than assumed to arrive.</p>
+
+    <h4>3. Express risk as a probability</h4>
+    <p class="serif">Cumulative demand over <code>t</code> days is approximately normal with mean <code>μ·t</code> and standard deviation <code>σ·√t</code>. The chance of running out by day <code>t</code> is therefore <code>Φ((μ·t − available(t)) / (σ·√t))</code>, taken as the worst day in the window. This is why the watchboard says "82% chance of stockout in 7 days" instead of a single date it can't actually promise.</p>
+
+    <h4>4. Say how much to trust the number</h4>
+    <p class="serif">Confidence drops when consumption is erratic (high <code>σ/μ</code>), when the stock count is stale, or when a facility has too little history. Low-confidence signals are still shown — they're just labelled, so a decision-maker knows when to ring the facility before acting on the figure.</p>
+
+    <h4>5. Look past the single facility</h4>
+    <p class="serif">A stockout redirects roughly 60% of that facility's demand onto its nearest neighbours within 40 km, split by travel distance. MedSignal feeds that extra load back into step 3 and re-runs it, three waves deep, which is how a single PHC running dry surfaces as a corridor-level warning days ahead.</p>
+
+    <h4>Where the redistribution plan comes from</h4>
+    <p class="serif">Deficits are sorted by urgency. For each one, donors are scored by <code>surplus ÷ (1 + distance/25 km)</code> so a slightly smaller stock next door beats a large one two hours away. Each transfer is rounded to pack size and its benefit is reported in days of cover gained at the receiving facility.</p>
+
+    <h4>Running this on real data</h4>
+    <p class="serif">The demo runs on a seeded simulation of the Chengalpattu network, shaped around three plausible events: a dengue-driven surge in the Tambaram corridor, snakebite season in the southern rural belt, and a delayed insulin consignment at the district warehouse. Swapping in live data means mapping four fields per facility — stock on hand, daily issues, pending orders, and coordinates. Nothing in the maths assumes simulated input.</p>
+  </div></div>
+</section>
+
+</div>
+
+<script>
+"use strict";
+/* ========================================================================
+   MedSignal — shortage detection engine (all client-side, seeded simulation)
+   ===================================================================== */
+
+/* ---------- utilities ---------- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function erf(x){const s=x<0?-1:1;x=Math.abs(x);const a1=.254829592,a2=-.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=.3275911;const t=1/(1+p*x);const y=1-((((a5*t+a4)*t+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);return s*y}
+function ncdf(z){return .5*(1+erf(z/Math.SQRT2))}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function km(a,b){const R=6371,dLa=(b.lat-a.lat)*Math.PI/180,dLo=(b.lng-a.lng)*Math.PI/180,la1=a.lat*Math.PI/180,la2=b.lat*Math.PI/180;
+  const h=Math.sin(dLa/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLo/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
+const fmt=n=>n>=10000?Math.round(n/1000)+"k":n>=1000?(n/1000).toFixed(1)+"k":Math.round(n).toLocaleString();
+const pct=p=>Math.round(p*100)+"%";
+
+/* ---------- master data ---------- */
+const MEDS=[
+  {id:"ors",  name:"ORS sachets",            unit:"sachets", pack:50,  base:78,  ess:1.0, shelf:"Ambient"},
+  {id:"para", name:"Paracetamol 500 mg",     unit:"tablets", pack:100, base:340, ess:0.75,shelf:"Ambient"},
+  {id:"amox", name:"Amoxicillin 500 mg",     unit:"capsules",pack:100, base:150, ess:0.9, shelf:"Ambient"},
+  {id:"asv",  name:"Anti-snake venom",       unit:"vials",   pack:10,  base:3.1, ess:1.0, shelf:"2–8 °C"},
+  {id:"insu", name:"Human insulin 40 IU",    unit:"vials",   pack:5,   base:11,  ess:1.0, shelf:"2–8 °C"},
+  {id:"iron", name:"Iron–folic acid",        unit:"tablets", pack:100, base:210, ess:0.55,shelf:"Ambient"}
+];
+
+const FACS=[
+  {id:"gh",  name:"GH Chengalpattu",        type:"District hospital", lat:12.6819,lng:79.9888, w:3.4, pop:412000, rel:.92},
+  {id:"whs", name:"District warehouse",     type:"Warehouse",         lat:12.6960,lng:79.9750, w:0.0, pop:0,      rel:.95},
+  {id:"tbm", name:"Tambaram CHC",           type:"Community HC",      lat:12.9249,lng:80.1000, w:2.1, pop:268000, rel:.88},
+  {id:"crm", name:"Chromepet UPHC",         type:"Urban PHC",         lat:12.9516,lng:80.1462, w:1.6, pop:191000, rel:.86},
+  {id:"vdl", name:"Vandalur PHC",           type:"Primary HC",        lat:12.8917,lng:80.0810, w:1.0, pop:96000,  rel:.81},
+  {id:"gdv", name:"Guduvancheri PHC",       type:"Primary HC",        lat:12.8449,lng:80.0594, w:1.2, pop:118000, rel:.83},
+  {id:"pdp", name:"Padappai PHC",           type:"Primary HC",        lat:12.8800,lng:80.0000, w:0.8, pop:71000,  rel:.78},
+  {id:"mmn", name:"Maraimalai Nagar PHC",   type:"Primary HC",        lat:12.7925,lng:80.0236, w:1.1, pop:104000, rel:.85},
+  {id:"klb", name:"Kelambakkam PHC",        type:"Primary HC",        lat:12.7869,lng:80.2214, w:1.0, pop:88000,  rel:.80},
+  {id:"tpr", name:"Thiruporur CHC",         type:"Community HC",      lat:12.7245,lng:80.1884, w:1.4, pop:132000, rel:.84},
+  {id:"tkd", name:"Tirukalukundram PHC",    type:"Primary HC",        lat:12.6100,lng:80.0620, w:0.9, pop:79000,  rel:.76},
+  {id:"mmp", name:"Mamallapuram PHC",       type:"Primary HC",        lat:12.6208,lng:80.1945, w:0.9, pop:74000,  rel:.79},
+  {id:"mdt", name:"Madurantakam CHC",       type:"Community HC",      lat:12.5106,lng:79.8836, w:1.5, pop:141000, rel:.82},
+  {id:"acp", name:"Acharapakkam PHC",       type:"Primary HC",        lat:12.4166,lng:79.8800, w:0.8, pop:68000,  rel:.74},
+  {id:"chy", name:"Cheyyur PHC",            type:"Primary HC",        lat:12.3389,lng:80.0058, w:0.7, pop:59000,  rel:.72}
+];
+const FMAP={}; FACS.forEach(f=>FMAP[f.id]=f);
+
+/* narrative events shaping the simulation */
+const DENGUE=["tbm","crm","vdl","gdv"];          // surging ORS + paracetamol
+const SNAKE =["chy","acp","mdt","tpr","tkd"];    // snakebite season, thin ASV
+const COLD  =["mmp","klb","tkd","acp","chy"];    // insulin consignment delayed
+
+/* forced coverage (days) for story-critical pairs */
+const FORCE={
+  "tbm|ors":2.4,"crm|ors":3.6,"vdl|ors":5.1,"gdv|ors":7.2,"gh|ors":19,
+  "chy|asv":1.8,"acp|asv":3.1,"mdt|asv":6.4,"tpr|asv":9.5,"gh|asv":26,
+  "mmp|insu":3.3,"klb|insu":5.6,"tkd|insu":8.1,"whs|insu":9.0,
+  "tbm|para":6.8,"crm|para":8.4,
+  "acp|amox":4.2,"pdp|amox":6.9
+};
+
+/* ---------- simulate ---------- */
+const HIST=21, TODAY=new Date("2026-09-17T07:00:00");
+const DB={};   // key fac|med -> record
+
+(function build(){
+  let seed=20260917;
+  MEDS.forEach((m,mi)=>{
+    FACS.forEach((f,fi)=>{
+      const rnd=mulberry32(seed+mi*977+fi*131);
+      const isW=f.type==="Warehouse";
+      const base=isW? m.base*7.5 : m.base*f.w*(0.82+rnd()*0.38);
+      const hist=[];
+      for(let d=0;d<HIST;d++){
+        const dow=(TODAY.getDay()-(HIST-1-d)+70)%7;
+        let v=base*(dow===0?0.55:dow===6?0.8:1)*(0.85+rnd()*0.3);
+        const ramp=Math.max(0,(d-(HIST-13))/12);
+        if(m.id==="ors"  && DENGUE.includes(f.id)) v*=1+1.15*ramp;
+        if(m.id==="para" && DENGUE.includes(f.id)) v*=1+0.8*ramp;
+        if(m.id==="asv"  && SNAKE.includes(f.id))  v*=1+0.85*ramp;
+        hist.push(Math.max(0,v));
+      }
+      const key=f.id+"|"+m.id;
+      const mu0=hist.slice(-7).reduce((a,b)=>a+b,0)/7;
+      let cover=FORCE[key];
+      if(cover==null) cover=isW? 22+rnd()*26 : 9+rnd()*34;
+      const stock=Math.max(0,Math.round(mu0*cover));
+      // pending replenishment
+      let inb=null;
+      const wantsOrder=cover<26 || rnd()<0.35;
+      if(wantsOrder && !isW){
+        let eta=Math.round(3+rnd()*11);
+        if(m.id==="insu"&&COLD.includes(f.id)) eta=Math.round(12+rnd()*7);
+        inb={qty:Math.round(mu0*(14+rnd()*16)), eta, rel:clamp(f.rel-(m.shelf!=="Ambient"?.12:0)-(eta>12?.15:0),.35,.97)};
+      }
+      DB[key]={fac:f,med:m,hist,stock,inb,updatedHrsAgo:Math.round(rnd()*46),reorder:Math.round(mu0*14)};
+    });
+  });
+})();
+
+/* ---------- forecasting + risk ---------- */
+function forecast(r){
+  const h=r.hist, n=h.length;
+  // EWMA over last 7
+  let num=0,den=0;
+  for(let i=0;i<7;i++){const w=Math.pow(.75,i);num+=h[n-1-i]*w;den+=w;}
+  const ewma=num/den;
+  // trend over last 14 (OLS slope)
+  const seg=h.slice(-14), k=seg.length;
+  const xb=(k-1)/2, yb=seg.reduce((a,b)=>a+b,0)/k;
+  let sxy=0,sxx=0; seg.forEach((y,x)=>{sxy+=(x-xb)*(y-yb);sxx+=(x-xb)**2});
+  const slope=sxx?sxy/sxx:0;
+  const mu=Math.max(0.15, ewma+slope*2.5);
+  // residual sigma
+  const res=seg.map((y,x)=>y-(yb+slope*(x-xb)));
+  const sd=Math.sqrt(res.reduce((a,b)=>a+b*b,0)/Math.max(1,k-1));
+  const sigma=Math.max(mu*0.18, sd);
+  return {mu,sigma,slope,trendPct:ewma?slope*7/ewma:0};
+}
+function available(r,t){
+  let a=r.stock;
+  if(r.inb && r.inb.eta<=t) a+=r.inb.qty*r.inb.rel;
+  return a;
+}
+/* Risk is split across two futures: the pending order lands, or it doesn't.
+   Weighting them by the supplier's on-time record is what stops a thin
+   facility from looking safe purely because a delivery is on paper. */
+function pStockout(r,f,T,extraMu){
+  const mu=f.mu+(extraMu||0);
+  const branch=useInb=>{
+    let worst=0, day=null;
+    for(let t=1;t<=T;t++){
+      let av=r.stock;
+      if(useInb && r.inb && r.inb.eta<=t) av+=r.inb.qty;
+      const p=ncdf((mu*t-av)/(f.sigma*Math.sqrt(t)));
+      if(p>worst) worst=p;
+      if(day===null && av-mu*t<=0) day=t;
+    }
+    return {p:worst,day};
+  };
+  const arrives=branch(true), missed=branch(false);
+  const rel=r.inb?r.inb.rel:1;
+  const p=r.inb ? rel*arrives.p+(1-rel)*missed.p : missed.p;
+  return {p:clamp(p,0,.97), firstDay:(r.inb?arrives.day:missed.day)};
+}
+function tierOf(p7,p14,cover){
+  if(p7>=0.45) return "crit";
+  if(p14>=0.45) return "high";
+  if(cover<14||p14>=0.2) return "watch";
+  return "stable";
+}
+const TIER={crit:{l:"Critical",c:"var(--crit)"},high:{l:"High",c:"var(--high)"},watch:{l:"Watch",c:"var(--watch)"},stable:{l:"Stable",c:"var(--stable)"}};
+
+function assess(key,extraMu){
+  const r=DB[key], f=forecast(r);
+  const a=pStockout(r,f,7,extraMu), b=pStockout(r,f,14,extraMu);
+  const mu=f.mu+(extraMu||0);
+  const cover=r.stock/mu;
+  const cv=f.sigma/f.mu;
+  let conf=3;
+  if(cv>0.30) conf--; if(cv>0.48) conf--;
+  if(r.updatedHrsAgo>30) conf--;
+  conf=clamp(conf,1,3);
+  const t=tierOf(a.p,b.p,cover);
+  const priority=(0.62*b.p+0.38*a.p)*r.med.ess*(0.55+Math.log10(1+r.fac.pop)/6)*(r.fac.type==="Warehouse"?0.7:1);
+  return {key,r,f,mu,cover,p7:a.p,p14:b.p,day:b.firstDay,tier:t,conf,cv,priority};
+}
+
+/* ---------- neighbours ---------- */
+const NEAR={};
+FACS.forEach(a=>{
+  NEAR[a.id]=FACS.filter(b=>b.id!==a.id&&b.type!=="Warehouse")
+    .map(b=>({id:b.id,d:km(a,b)})).sort((x,y)=>x.d-y.d);
+});
+
+/* ---------- state ---------- */
+let MED="ors", SEL=null, MAPMODE="risk", PLAN=[];
+
+function rowsFor(med){
+  return FACS.map(f=>assess(f.id+"|"+med)).sort((a,b)=>b.priority-a.priority);
+}
+
+/* ---------- redistribution ---------- */
+const TARGET=21; // days of cover to restore
+function buildPlan(med){
+  const A={}; rowsFor(med).forEach(x=>A[x.r.fac.id]=x);
+  const surplus={}, deficit=[];
+  FACS.forEach(f=>{
+    const x=A[f.id];
+    const floor=x.mu*(f.type==="Warehouse"?10:TARGET);
+    const s=x.r.stock-floor;
+    if(s>x.mu*2) surplus[f.id]=s;
+    if(x.tier==="crit"||x.tier==="high"||(x.tier==="watch"&&x.cover<12)){
+      deficit.push({f,x,need:Math.max(0,x.mu*TARGET-x.r.stock)});
+    }
+  });
+  deficit.sort((a,b)=>b.x.priority-a.x.priority);
+  const moves=[], unmet=[];
+  const M=MEDS.find(m=>m.id===med);
+  deficit.forEach(d=>{
+    let need=d.need;
+    const donors=Object.keys(surplus)
+      .filter(id=>id!==d.f.id&&surplus[id]>M.pack)
+      .map(id=>({id,d:km(FMAP[id],d.f),s:surplus[id]}))
+      .map(o=>({...o,score:o.s/(1+o.d/25)}))
+      .sort((a,b)=>b.score-a.score);
+    for(const o of donors){
+      if(need<M.pack*0.5) break;
+      if(o.d>75) continue;
+      let q=Math.min(need,surplus[o.id]);
+      q=Math.floor(q/M.pack)*M.pack;
+      if(q<M.pack) continue;
+      surplus[o.id]-=q; need-=q;
+      const gain=q/d.x.mu;
+      moves.push({
+        from:FMAP[o.id],to:d.f,qty:q,dist:o.d,med:M,
+        gain, urgency:d.x, hours:(o.d/34)+0.75,
+        newCover:d.x.cover+gain
+      });
+    }
+    if(need>=M.pack) unmet.push({f:d.f,x:d.x,qty:Math.ceil(need/M.pack)*M.pack});
+  });
+  return {moves,unmet};
+}
+
+/* ---------- cascade ---------- */
+const LEAK=0.6, RADIUS=40;
+function cascade(startId,med){
+  const waves=[];
+  const load={};      // facId -> extra mu
+  let front=[{id:startId,day:Math.max(1,Math.round(assess(startId+"|"+med).day||assess(startId+"|"+med).cover))}];
+  const failed=new Set([startId]);
+  const a0=assess(startId+"|"+med);
+  waves.push({n:0,day:Math.round(a0.cover),nodes:[{f:FMAP[startId],p:a0.p14,cover:a0.cover,txt:"Origin — projected to run dry"}]});
+  for(let w=1;w<=3;w++){
+    const nextFront=[], nodes=[];
+    front.forEach(src=>{
+      const srcA=assess(src.id+"|"+med,load[src.id]||0);
+      const nb=NEAR[src.id].filter(n=>n.d<=RADIUS&&!failed.has(n.id)).slice(0,3);
+      const wsum=nb.reduce((a,n)=>a+1/(1+n.d/10),0)||1;
+      nb.forEach(n=>{
+        const share=(1/(1+n.d/10))/wsum;
+        const extra=srcA.mu*LEAK*share;
+        load[n.id]=(load[n.id]||0)+extra;
+      });
+    });
+    Object.keys(load).forEach(id=>{
+      if(failed.has(id)) return;
+      const before=assess(id+"|"+med);
+      const after=assess(id+"|"+med,load[id]);
+      if(after.tier==="crit"||after.tier==="high"||after.p14-before.p14>0.12){
+        nodes.push({
+          f:FMAP[id],p:after.p14,cover:after.cover,before:before.cover,
+          txt:`+${Math.round(load[id])} ${MEDS.find(m=>m.id===med).unit}/day diverted here`
+        });
+        if(after.p14>=0.45){nextFront.push({id});failed.add(id);}
+      }
+    });
+    if(!nodes.length) break;
+    nodes.sort((a,b)=>b.p-a.p);
+    waves.push({n:w,day:Math.round(a0.cover)+w*4,nodes});
+    front=nextFront;
+    if(!front.length) break;
+  }
+  return waves;
+}
+
+/* ========================================================================
+   RENDER
+   ===================================================================== */
+document.getElementById("asof").textContent=TODAY.toLocaleString("en-IN",{weekday:"short",day:"numeric",month:"short",hour:"numeric",minute:"2-digit"});
+
+function renderKPIs(){
+  let crit=0,high=0,idle=0,gap=0,people=0;
+  MEDS.forEach(m=>{
+    rowsFor(m.id).forEach(x=>{
+      if(x.tier==="crit"){crit++;people+=x.r.fac.pop;}
+      if(x.tier==="high")high++;
+      const sur=x.r.stock-x.mu*TARGET;
+      if(sur>0&&x.tier==="stable")idle+=sur;
+    });
+    gap+=buildPlan(m.id).moves.length;
+  });
+  const el=document.getElementById("kpis");
+  el.innerHTML=[
+    ["alarm",crit,"Critical signals — stockout likely inside 7 days"],
+    ["warn",high,"High risk inside 14 days"],
+    ["",fmt(people),"People served by a facility now critical"],
+    ["good",fmt(idle),"Surplus units sitting idle elsewhere in district"],
+    ["good",gap,"Transfers that would close those gaps"]
+  ].map(([c,n,l])=>`<div class="kpi ${c}"><div class="n">${n}</div><div class="l">${l}</div></div>`).join("");
+}
+
+function renderRail(){
+  document.getElementById("rail").innerHTML=MEDS.map(m=>{
+    const rs=rowsFor(m.id);
+    const c=rs.filter(x=>x.tier==="crit").length, h=rs.filter(x=>x.tier==="high").length;
+    const col=c?"var(--crit)":h?"var(--high)":rs.some(x=>x.tier==="watch")?"var(--watch)":"var(--stable)";
+    return `<button class="med" data-med="${m.id}" aria-pressed="${m.id===MED}">
+      <span class="dot" style="background:${col};box-shadow:0 0 12px ${col}"></span>
+      <span class="nm">${m.name}</span>
+      <span class="ct">${c?c+" critical":h?h+" at risk":"stable"}</span></button>`;
+  }).join("");
+  document.querySelectorAll(".med").forEach(b=>b.onclick=()=>{MED=b.dataset.med;SEL=null;renderAll();});
+}
+
+/* ----- map ----- */
+const BB={la1:12.30,la2:13.00,lo1:79.84,lo2:80.27};
+function proj(f){
+  const x=40+((f.lng-BB.lo1)/(BB.lo2-BB.lo1))*640;
+  const y=32+((BB.la2-f.lat)/(BB.la2-BB.la1))*406;
+  return {x,y};
+}
+function renderMap(){
+  const rows=rowsFor(MED); const A={}; rows.forEach(r=>A[r.r.fac.id]=r);
+  const svg=document.getElementById("map");
+  let s="";
+  // subtle grid
+  s+=`<defs>
+    <marker id="ar" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,1 L8,4.5 L0,8 z" fill="var(--stable)"/></marker>
+    <filter id="glow" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDeviation="4.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softglow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="2.4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>`;
+  for(let i=1;i<7;i++) s+=`<line x1="${40+i*91}" y1="20" x2="${40+i*91}" y2="450" stroke="var(--line)" stroke-width=".5" opacity=".5"/>`;
+  for(let i=1;i<5;i++) s+=`<line x1="20" y1="${32+i*81}" x2="700" y2="${32+i*81}" stroke="var(--line)" stroke-width=".5" opacity=".5"/>`;
+  // connector lines to warehouse
+  const wp=proj(FMAP.whs);
+  FACS.filter(f=>f.type!=="Warehouse").forEach(f=>{const p=proj(f);
+    s+=`<line x1="${wp.x}" y1="${wp.y}" x2="${p.x}" y2="${p.y}" stroke="var(--line)" stroke-width="1" opacity=".55"/>`;});
+
+  if(MAPMODE==="flow"){
+    PLAN.moves.slice(0,9).forEach(mv=>{
+      const a=proj(mv.from),b=proj(mv.to);
+      const mx=(a.x+b.x)/2+(b.y-a.y)*.16, my=(a.y+b.y)/2-(b.x-a.x)*.16;
+      s+=`<path d="M${a.x},${a.y} Q${mx},${my} ${b.x},${b.y}" fill="none" stroke="var(--stable)" stroke-width="1.8" opacity=".9" filter="url(#softglow)" marker-end="url(#ar)"/>`;
+      s+=`<text x="${mx}" y="${my-4}" font-size="10" fill="var(--ink3)" text-anchor="middle">${fmt(mv.qty)}</text>`;
+    });
+  }
+
+  FACS.forEach(f=>{
+    const p=proj(f), a=A[f.id], t=TIER[a.tier];
+    const isW=f.type==="Warehouse";
+    let rad=isW?0:clamp(4.5+Math.log10(1+f.pop)/1.5,5,11);
+    let fill=t.c;
+    if(MAPMODE==="cover"){
+      const c=clamp(a.cover,0,45)/45;
+      fill=c<.18?"var(--crit)":c<.33?"var(--high)":c<.55?"var(--watch)":"var(--stable)";
+    }
+    const selected=SEL===f.id;
+    if(a.tier==="crit"&&!isW) s+=`<circle class="pulse" cx="${p.x}" cy="${p.y}" r="6" fill="${t.c}" opacity=".5"/>`;
+    if(isW){
+      s+=`<rect class="nodeHit" data-f="${f.id}" x="${p.x-8}" y="${p.y-8}" width="16" height="16" rx="4" fill="#070C10" stroke="${fill}" stroke-width="2" filter="url(#softglow)" style="cursor:pointer"/>`;
+    }else{
+      const fx=(a.tier==="crit"||a.tier==="high"||selected)?' filter="url(#glow)"':' filter="url(#softglow)"';
+      s+=`<circle class="nodeHit" data-f="${f.id}" cx="${p.x}" cy="${p.y}" r="${rad}" fill="${fill}" stroke="${selected?"var(--ink)":"rgba(0,0,0,.55)"}" stroke-width="${selected?2.5:1.2}"${fx} style="cursor:pointer"/>`;
+    }
+    const lx=p.x+(p.x>560?-1:1)*(rad+6);
+    s+=`<text x="${lx}" y="${p.y+3.5}" font-size="10.5" fill="${selected?"var(--ink)":"var(--ink3)"}" text-anchor="${p.x>560?"end":"start"}" style="pointer-events:none;font-weight:${selected?600:400}">${f.name.replace(/ (PHC|CHC|UPHC)$/,"")}</text>`;
+    if(!isW) s+=`<text x="${lx}" y="${p.y+15}" font-size="9.5" fill="var(--ink3)" text-anchor="${p.x>560?"end":"start"}" style="pointer-events:none" opacity=".8">${a.cover<99?Math.round(a.cover)+"d":""}</text>`;
+  });
+  s+=`<text x="40" y="460" font-size="10" fill="var(--ink3)">Node size = catchment population · label = days of cover remaining</text>`;
+  svg.innerHTML=s;
+  svg.querySelectorAll(".nodeHit").forEach(n=>n.onclick=()=>{SEL=n.dataset.f;renderSignals();renderDetail();renderMap();});
+  document.getElementById("maptitle").textContent=MEDS.find(m=>m.id===MED).name+" — district position";
+}
+
+/* ----- signals ----- */
+function renderSignals(){
+  const rows=rowsFor(MED).filter(x=>x.r.fac.type!=="Warehouse"||x.tier!=="stable");
+  if(!SEL) SEL=rows[0].r.fac.id;
+  document.getElementById("sigmeta").textContent=rows.filter(r=>r.tier!=="stable").length+" need attention";
+  document.getElementById("signals").innerHTML=rows.map(x=>{
+    const t=TIER[x.tier];
+    return `<button class="sig" data-f="${x.r.fac.id}" aria-current="${SEL===x.r.fac.id}">
+      <div class="r1"><span class="fac">${x.r.fac.name}</span>
+        <span class="dos" style="color:${t.c}">${x.cover<60?Math.round(x.cover)+" d cover":"ample"}</span></div>
+      <div class="r2"><span><span class="tag ${x.tier}">${t.l}</span> &nbsp;${pct(x.p14)} chance of stockout in 14 d</span>
+        <span>${fmt(x.r.stock)} ${x.r.med.unit}</span></div>
+      <div class="bar"><i style="width:${clamp(x.p14*100,3,100)}%;background:${t.c};color:${t.c}"></i></div>
+    </button>`;
+  }).join("");
+  document.querySelectorAll(".sig").forEach(b=>b.onclick=()=>{SEL=b.dataset.f;renderSignals();renderDetail();renderMap();});
+}
+
+/* ----- fan chart ----- */
+function fanChart(x){
+  const W=520,H=170,PAD=34, T=14;
+  const r=x.r, mu=x.mu, sg=x.f.sigma;
+  const yMax=Math.max(r.stock*1.12,(r.inb?r.stock+r.inb.qty*r.inb.rel:0)*1.05,mu*4);
+  const X=t=>PAD+(t/T)*(W-PAD-14);
+  const Y=v=>H-26-(clamp(v,0,yMax)/yMax)*(H-46);
+  let up="",lo="",mid="",cross=null;
+  for(let t=0;t<=T;t++){
+    const av=available(r,t), m=av-mu*t;
+    const band=1.96*sg*Math.sqrt(Math.max(t,0.0001));
+    up+=`${t?"L":"M"}${X(t)},${Y(m+band)} `;
+    lo=`L${X(t)},${Y(Math.max(0,m-band))} `+lo;
+    mid+=`${t?"L":"M"}${X(t)},${Y(Math.max(0,m))} `;
+    if(cross===null&&m<=0) cross=t;
+  }
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">`;
+  s+=`<line x1="${PAD}" y1="${Y(0)}" x2="${W-14}" y2="${Y(0)}" stroke="var(--line2)" stroke-width="1"/>`;
+  s+=`<line x1="${PAD}" y1="${Y(x.r.reorder)}" x2="${W-14}" y2="${Y(x.r.reorder)}" stroke="var(--watch)" stroke-width="1" stroke-dasharray="4 4" opacity=".8"/>`;
+  s+=`<text x="${W-16}" y="${Y(x.r.reorder)-4}" font-size="9.5" fill="var(--watch)" text-anchor="end">reorder level</text>`;
+  s+=`<defs><filter id="fg" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <linearGradient id="bandg" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="${TIER[x.tier].c}" stop-opacity=".30"/>
+      <stop offset="100%" stop-color="${TIER[x.tier].c}" stop-opacity=".08"/></linearGradient></defs>`;
+  s+=`<path d="${up} ${lo} Z" fill="url(#bandg)"/>`;
+  s+=`<path d="${mid}" fill="none" stroke="${TIER[x.tier].c}" stroke-width="2.2" filter="url(#fg)"/>`;
+  if(r.inb&&r.inb.eta<=T){
+    s+=`<line x1="${X(r.inb.eta)}" y1="14" x2="${X(r.inb.eta)}" y2="${Y(0)}" stroke="var(--stable)" stroke-width="1" stroke-dasharray="3 3"/>`;
+    s+=`<text x="${X(r.inb.eta)+4}" y="22" font-size="9.5" fill="var(--stable)">order due · ${pct(r.inb.rel)} on time</text>`;
+  }
+  if(cross!==null){
+    s+=`<circle cx="${X(cross)}" cy="${Y(0)}" r="4.5" fill="var(--crit)" filter="url(#fg)"/>`;
+    s+=`<text x="${X(cross)}" y="${Y(0)+16}" font-size="10" fill="var(--crit)" text-anchor="middle">empty ~day ${cross}</text>`;
+  }
+  for(let t=0;t<=T;t+=7) s+=`<text x="${X(t)}" y="${H-8}" font-size="9.5" fill="var(--ink3)" text-anchor="middle">${t?"day "+t:"today"}</text>`;
+  s+=`<text x="4" y="${Y(yMax)+10}" font-size="9.5" fill="var(--ink3)">${fmt(yMax)}</text>`;
+  s+=`<text x="4" y="${Y(0)-3}" font-size="9.5" fill="var(--ink3)">0</text>`;
+  s+=`</svg>`;
+  return s;
+}
+function spark(h){
+  const W=520,H=48,mx=Math.max(...h),mn=Math.min(...h);
+  const X=i=>(i/(h.length-1))*W, Y=v=>H-4-((v-mn)/((mx-mn)||1))*(H-12);
+  let d=""; h.forEach((v,i)=>d+=`${i?"L":"M"}${X(i).toFixed(1)},${Y(v).toFixed(1)} `);
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block"><path d="${d}" fill="none" stroke="var(--ink2)" stroke-width="1.6"/>
+    <path d="${d} L${W},${H} L0,${H} Z" fill="var(--ink2)" opacity=".08"/></svg>`;
+}
+
+function renderDetail(){
+  const x=assess(SEL+"|"+MED), r=x.r, t=TIER[x.tier];
+  document.getElementById("detmeta").textContent=r.fac.type+" · "+r.med.name;
+  const trend=x.f.trendPct;
+  const drivers=[];
+  drivers.push(["Consumption",`${Math.round(x.mu)} ${r.med.unit}/day, ${trend>0.04?`rising ${pct(trend)} week on week`:trend<-0.04?`easing ${pct(-trend)} week on week`:"broadly flat"}`]);
+  drivers.push(["Stock on hand",`${fmt(r.stock)} ${r.med.unit} — ${Math.round(x.cover)} days at current rate`]);
+  drivers.push(["Replenishment", r.inb?`${fmt(r.inb.qty)} due in ${r.inb.eta} days · supplier delivers on time ${pct(r.inb.rel)} of the time`:"No order placed against this item"]);
+  const nb=NEAR[r.fac.id].slice(0,3).map(n=>{const y=assess(n.id+"|"+MED);return `${FMAP[n.id].name.replace(/ (PHC|CHC|UPHC)$/,"")} ${Math.round(y.cover)}d`;}).join(" · ");
+  drivers.push(["Nearby cover",nb]);
+  const mv=PLAN.moves.filter(m=>m.to.id===r.fac.id);
+  drivers.push(["Recommended", mv.length?`Pull ${fmt(mv.reduce((a,b)=>a+b.qty,0))} ${r.med.unit} from ${mv.map(m=>m.from.name.replace(/ (PHC|CHC|UPHC)$/,"")).join(", ")}`: x.tier==="stable"?"Hold — no action needed":"No in-district surplus available; escalate to state procurement"]);
+
+  document.getElementById("detail").innerHTML=`
+    <div style="display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;align-items:flex-start">
+      <div><h3 style="font-size:17px">${r.fac.name}</h3>
+        <div style="font-size:13px;color:var(--ink3);margin-top:2px">Serves about ${fmt(r.fac.pop)} people · stock counted ${r.updatedHrsAgo} h ago · ${r.med.shelf}</div></div>
+      <div style="text-align:right">
+        <div class="tag ${x.tier}" style="font-size:12.5px">${t.l}</div>
+        <div style="font-size:27px;font-weight:700;letter-spacing:-.03em;color:${t.c};margin-top:5px;text-shadow:0 0 22px ${t.c}">${pct(x.p14)}</div>
+        <div style="font-size:12px;color:var(--ink3)">chance of stockout within 14 days</div>
+      </div>
+    </div>
+    <div style="margin:14px 0 2px">${fanChart(x)}</div>
+    <div style="font-size:12.5px;color:var(--ink3);margin-bottom:12px">Projected stock with 95% uncertainty band. The shaded width is the honest range, not a forecasting flourish — it widens with how erratic this facility's consumption has been.</div>
+    <div style="font-size:12.5px;color:var(--ink3);margin-bottom:2px">Daily issues, last 21 days</div>
+    ${spark(r.hist)}
+    <ul class="drivers">${drivers.map(d=>`<li><span>${d[0]}</span><span>${d[1]}</span></li>`).join("")}</ul>
+    <div class="uncert"><span>Confidence in this forecast</span>
+      <span class="conf">${[1,2,3].map(i=>`<i class="${i<=x.conf?"on":""}"></i>`).join("")}</span>
+      <span>${x.conf===3?"Consumption is steady and the count is fresh":x.conf===2?"Day-to-day variation is high — treat the date as approximate":"Erratic consumption and a stale stock count; confirm with the facility before acting"}</span></div>
+  `;
+}
+
+/* ----- cascade UI ----- */
+function renderCascadeControls(){
+  const rows=rowsFor(MED).filter(x=>x.r.fac.type!=="Warehouse");
+  document.getElementById("cascFac").innerHTML=rows.map(x=>
+    `<option value="${x.r.fac.id}">${x.r.fac.name} — ${Math.round(x.cover)} days of ${x.r.med.name}</option>`).join("");
+  document.getElementById("cascMeta").textContent="Assumes 60% of unmet demand travels to the nearest facility within 40 km.";
+}
+function renderCascade(){
+  const id=document.getElementById("cascFac").value;
+  const waves=cascade(id,MED);
+  const unit=MEDS.find(m=>m.id===MED).unit;
+  let out=waves.map(w=>`
+    <div class="wave">
+      <div class="hd2"><span class="ring">${w.n}</span>
+        <h4>${w.n===0?"Origin":"Wave "+w.n}</h4>
+        <span class="day">${w.n===0?`around day ${w.day}`:`day ${w.day} onward`}</span></div>
+      <div class="nodes">${w.nodes.map(n=>`
+        <div class="node" style="border-left:3px solid ${n.p>=.45?"var(--crit)":n.p>=.25?"var(--high)":"var(--watch)"}">
+          <div class="n1">${n.f.name}</div>
+          <div class="n2">${pct(n.p)} stockout risk · ${Math.round(n.cover)} d cover${n.before!=null?` (was ${Math.round(n.before)} d)`:""}</div>
+          <div class="n2">${n.txt}</div>
+        </div>`).join("")}</div>
+    </div>`).join("");
+  const total=waves.reduce((a,w)=>a+w.nodes.length,0);
+  const people=waves.flatMap(w=>w.nodes).reduce((a,n)=>a+n.f.pop,0);
+  out=`<p class="serif" style="max-width:76ch;margin-bottom:16px">Left alone, this single stockout pulls <b style="color:var(--ink)">${total} facilities</b> covering roughly <b style="color:var(--ink)">${fmt(people)} people</b> into risk within about two weeks. Acting at wave 0 costs one truck; acting at wave 2 costs a district-level emergency order.</p>`+out;
+  document.getElementById("cascOut").innerHTML=out;
+}
+
+/* ----- redistribution UI ----- */
+function renderPlan(){
+  PLAN=buildPlan(MED);
+  const unit=MEDS.find(m=>m.id===MED).unit;
+  document.getElementById("moveMeta").textContent=PLAN.moves.length+" moves · "+MEDS.find(m=>m.id===MED).name;
+  document.getElementById("moveTbl").innerHTML=`
+    <thead><tr><th>Priority</th><th>Move</th><th class="num">Quantity</th><th class="num">Trip</th><th>Effect</th></tr></thead>
+    <tbody>${PLAN.moves.map((m,i)=>`
+      <tr>
+        <td><span class="tag ${m.urgency.tier}">${i+1}</span></td>
+        <td><b>${m.from.name}</b> → <b>${m.to.name}</b>
+          <div class="why">Chosen because ${m.from.name.replace(/ (PHC|CHC|UPHC)$/,"")} holds ${Math.round(assess(m.from.id+"|"+MED).cover)} days of cover, ${m.dist.toFixed(0)} km away — the closest surplus that can be spared without putting the donor below its own 21-day floor.</div></td>
+        <td class="num">${fmt(m.qty)}<div class="why" style="text-align:right">${unit}</div></td>
+        <td class="num">${m.dist.toFixed(0)} km<div class="why" style="text-align:right">~${m.hours.toFixed(1)} h</div></td>
+        <td>Cover at ${m.to.name.replace(/ (PHC|CHC|UPHC)$/,"")} goes ${Math.round(m.urgency.cover)} → <b style="color:var(--stable)">${Math.round(m.newCover)} days</b>
+          <div class="why">Stockout risk in 14 days drops from ${pct(m.urgency.p14)} to under ${pct(Math.max(.02,m.urgency.p14*0.18))}.</div></td>
+      </tr>`).join("")||`<tr><td colspan="5" style="padding:22px;color:var(--ink3)">No transfers needed for this medicine. Every facility is above its 21-day floor.</td></tr>`}
+    </tbody>`;
+  document.getElementById("escalate").innerHTML=PLAN.unmet.length?PLAN.unmet.map(u=>`
+    <div style="padding:12px 15px;border-bottom:1px solid var(--line)">
+      <div style="display:flex;justify-content:space-between;gap:10px"><b style="font-size:13.5px">${u.f.name}</b><span class="tag ${u.x.tier}">${TIER[u.x.tier].l}</span></div>
+      <div style="font-size:13px;color:var(--ink2);margin-top:3px">Short by ${fmt(u.qty)} ${unit} after all in-district moves.</div>
+      <div class="why">Serves ${fmt(u.f.pop)} people · ${Math.round(u.x.cover)} days of cover left · order needs to be placed within ${Math.max(1,Math.round(u.x.cover)-4)} days to land in time.</div>
+    </div>`).join(""):`<div style="padding:22px 15px;color:var(--ink3);font-size:13.5px">Nothing to escalate. Every gap for this medicine can be closed by moving stock that already exists inside the district.</div>`;
+}
+
+/* ----- tabs ----- */
+document.querySelectorAll("#tabs button").forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll("#tabs button").forEach(o=>o.setAttribute("aria-selected",o===b));
+    ["watch","cascade","move","method"].forEach(t=>
+      document.getElementById("tab-"+t).classList.toggle("hide",t!==b.dataset.tab));
+    if(b.dataset.tab==="cascade"){renderCascadeControls();renderCascade();}
+  };
+});
+document.getElementById("cascRun").onclick=renderCascade;
+document.getElementById("cascFac").onchange=renderCascade;
+[["tgRisk","risk"],["tgCover","cover"],["tgFlow","flow"]].forEach(([id,mode])=>{
+  document.getElementById(id).onclick=()=>{
+    MAPMODE=mode;
+    ["tgRisk","tgCover","tgFlow"].forEach(o=>document.getElementById(o).setAttribute("aria-pressed",o===id));
+    renderMap();
+  };
+});
+
+function renderAll(){
+  PLAN=buildPlan(MED);
+  renderKPIs();renderRail();renderSignals();renderMap();renderDetail();renderPlan();
+  renderCascadeControls();
+}
+renderAll();
+</script>
+</body>
+</html>
